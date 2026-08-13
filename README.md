@@ -45,7 +45,7 @@ lisi = fastlisi.compute_lisi(X, metadata, ["batch"], perplexity=30, n_threads=4)
 # Skip the label-encoding step if you already have integer codes
 lisi = fastlisi.compute_lisi_from_codes(X, codes)  # codes: (n_labels, n_cells)
 
-fastlisi.openmp_enabled()  # False means this build runs single-threaded
+fastlisi.max_threads()  # threads used when n_threads=0
 ```
 
 ## Speed
@@ -74,8 +74,9 @@ More cores helps roughly linearly beyond this.
   instead of testing the splitting plane alone.
 - **One neighbor search for all label columns**, instead of rebuilding the tree
   per column.
-- **Threaded** over cells, with per-thread scratch buffers replacing roughly
-  `4 × n_cells` heap allocations.
+- **Threaded** over cells (plain `std::thread`, no OpenMP runtime to install
+  or bundle), with per-thread scratch buffers replacing roughly `4 × n_cells`
+  heap allocations.
 
 ### Scaling
 

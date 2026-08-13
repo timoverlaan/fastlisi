@@ -1,11 +1,7 @@
-"""fastlisi - Local Inverse Simpson Index (LISI).
+"""Implementation of the LISI statistic.
 
-LISI measures how mixed the neighborhood of each cell is with respect to a
-categorical label. It is the standard statistic for judging whether a batch
-integration method (Harmony, scVI, ...) actually mixed the batches.
-
-This is a faster implementation of the LISI code from harmonypy
-(https://github.com/slowkow/harmonypy), returning identical values.
+Public names are re-exported from ``fastlisi``; import from there rather than
+from this module.
 
 Copyright (C) 2018  Ilya Korsunsky
               2019  Kamil Slowikowski <kslowikowski@gmail.com>
@@ -20,10 +16,9 @@ from typing import Iterable, Optional
 
 import numpy as np
 
-from fastlisi._fastlisi import compute_lisi_cpp, max_threads, openmp_enabled
+from fastlisi._fastlisi import compute_lisi_cpp, max_threads
 
-__all__ = ["compute_lisi", "compute_lisi_from_codes", "max_threads", "openmp_enabled"]
-__version__ = "0.1.0"
+__all__ = ["compute_lisi", "compute_lisi_from_codes", "max_threads"]
 
 
 def compute_lisi(
@@ -59,7 +54,8 @@ def compute_lisi(
         Effective number of neighbors used for the Gaussian kernel. The search
         collects ``3 * perplexity`` neighbors per cell.
     n_threads
-        Threads to use. 0 (default) lets OpenMP choose, normally one per core.
+        Threads to use. 0 (default) uses one per core. Results are identical
+        regardless of this value.
 
     Returns
     -------

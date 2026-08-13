@@ -143,8 +143,19 @@ def test_input_validation():
         fastlisi.compute_lisi(X, {"b": np.zeros(10, dtype=int)}, ["b"])
 
 
-def test_build_reports_openmp():
-    """Not a correctness check: surfaces a single-threaded build in CI logs."""
-    print(f"openmp_enabled={fastlisi.openmp_enabled()} max_threads={fastlisi.max_threads()}")
-    assert isinstance(fastlisi.openmp_enabled(), bool)
+def test_reports_thread_count():
+    """Not a correctness check: surfaces the default thread count in CI logs."""
+    print(f"max_threads={fastlisi.max_threads()}")
     assert fastlisi.max_threads() >= 1
+
+
+def test_imports_the_installed_package():
+    """Guard against a source directory shadowing the built extension."""
+    assert hasattr(fastlisi, "_fastlisi"), "compiled extension not importable"
+
+
+def test_public_namespace_is_clean():
+    """__init__ should export the API and nothing incidental."""
+    public = {n for n in dir(fastlisi) if not n.startswith("_")}
+    assert public == {"compute_lisi", "compute_lisi_from_codes", "max_threads"}
+    assert fastlisi.__version__

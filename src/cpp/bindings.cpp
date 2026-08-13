@@ -66,19 +66,6 @@ NB_MODULE(_fastlisi, m) {
         "Returns (n_labels, n_cells) float64."
     );
 
-    m.def("openmp_enabled", []() {
-#ifdef _OPENMP
-        return true;
-#else
-        return false;
-#endif
-    }, "True if this build was compiled with OpenMP support.");
-
-    m.def("max_threads", []() {
-#ifdef _OPENMP
-        return omp_get_max_threads();
-#else
-        return 1;
-#endif
-    }, "Number of threads OpenMP will use by default.");
+    m.def("max_threads", &lisi::default_thread_count,
+          "Number of threads used when n_threads is 0.");
 }

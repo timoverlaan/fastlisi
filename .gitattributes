@@ -1,0 +1,11 @@
+# Normalize line endings so the repo is byte-identical on every platform.
+# Without this, a Windows clone with core.autocrlf=true produces a working
+# tree that looks entirely modified to any non-Windows tool.
+* text=auto eol=lf
+
+# Never touch binary fixtures.
+*.gz binary
+*.whl binary
+*.so binary
+*.dylib binary
+*.pyd binary

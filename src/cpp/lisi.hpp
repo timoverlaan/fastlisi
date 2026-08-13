@@ -13,12 +13,19 @@
 #include <numeric>
 #include <cstring>
 #include <cstddef>
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include <atomic>
+#include <exception>
+#include <mutex>
+#include <thread>
 
 namespace lisi {
+
+// Threads to use when the caller does not specify. hardware_concurrency() is
+// allowed to return 0 when it cannot tell, in which case fall back to serial.
+inline int default_thread_count() {
+    unsigned n = std::thread::hardware_concurrency();
+    return n > 0 ? static_cast<int>(n) : 1;
+}
 
 // ---------------------------------------------------------------------------
 // kd-tree for k-nearest-neighbor search.
@@ -265,31 +272,58 @@ inline std::vector<double> compute_lisi_impl(
     int max_cat = 1;
     for (int l = 0; l < n_labels; ++l) max_cat = std::max(max_cat, n_categories[l]);
 
-#ifdef _OPENMP
-#pragma omp parallel num_threads(n_threads > 0 ? n_threads : omp_get_max_threads())
-#else
-    (void)n_threads;
-#endif
-    {
-        KDTree::Scratch scratch(k, d);
-        std::vector<double> P(k + 1), cat_prob(max_cat);
-#ifdef _OPENMP
-#pragma omp for schedule(static, 256)
-#endif
-        for (int i = 0; i < N; ++i) {
-            tree.knn(i, k, scratch);
-            int n_nb = static_cast<int>(scratch.nn_idx.size());
-            for (int l = 0; l < n_labels; ++l) {
-                double simpson = compute_simpson_one(
-                    scratch.nn_dist.data(), scratch.nn_idx.data(), n_nb,
-                    lab.data() + static_cast<std::size_t>(l) * N,
-                    n_categories[l], perplexity, P.data(), cat_prob.data()
-                );
-                result[static_cast<std::size_t>(l) * N + perm[i]] =
-                    (simpson > 0) ? 1.0 / simpson : 0.0;
+    // Cells are independent: each writes only its own slot of `result`, so
+    // any work split produces bit-identical output. Blocks are handed out
+    // dynamically because query cost varies with local point density.
+    const int BLOCK = 256;
+    const int n_blocks = (N + BLOCK - 1) / BLOCK;
+    std::atomic<int> next_block{0};
+    std::exception_ptr first_error;
+    std::mutex error_mutex;
+
+    auto worker = [&]() {
+        try {
+            KDTree::Scratch scratch(k, d);
+            std::vector<double> P(k + 1), cat_prob(max_cat);
+            for (;;) {
+                int b = next_block.fetch_add(1, std::memory_order_relaxed);
+                if (b >= n_blocks) break;
+                int begin = b * BLOCK;
+                int end = std::min(N, begin + BLOCK);
+                for (int i = begin; i < end; ++i) {
+                    tree.knn(i, k, scratch);
+                    int n_nb = static_cast<int>(scratch.nn_idx.size());
+                    for (int l = 0; l < n_labels; ++l) {
+                        double simpson = compute_simpson_one(
+                            scratch.nn_dist.data(), scratch.nn_idx.data(), n_nb,
+                            lab.data() + static_cast<std::size_t>(l) * N,
+                            n_categories[l], perplexity, P.data(), cat_prob.data()
+                        );
+                        result[static_cast<std::size_t>(l) * N + perm[i]] =
+                            (simpson > 0) ? 1.0 / simpson : 0.0;
+                    }
+                }
             }
+        } catch (...) {
+            std::lock_guard<std::mutex> guard(error_mutex);
+            if (!first_error) first_error = std::current_exception();
         }
+    };
+
+    int n_workers = n_threads > 0 ? n_threads : default_thread_count();
+    n_workers = std::max(1, std::min(n_workers, n_blocks));
+
+    if (n_workers == 1) {
+        worker();
+    } else {
+        std::vector<std::thread> pool;
+        pool.reserve(n_workers - 1);
+        for (int t = 0; t < n_workers - 1; ++t) pool.emplace_back(worker);
+        worker();  // the calling thread takes part too
+        for (std::thread& t : pool) t.join();
     }
+
+    if (first_error) std::rethrow_exception(first_error);
     return result;
 }
 

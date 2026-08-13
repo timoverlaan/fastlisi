@@ -37,13 +37,13 @@ dependencies = ["numpy"]
 test = ["pandas", "pytest>=8.0"]
 
 [project.urls]
-Homepage = "https://github.com/USER/fastlisi"
-Repository = "https://github.com/USER/fastlisi"
-Issues = "https://github.com/USER/fastlisi/issues"
+Homepage = "https://github.com/timoverlaan/fastlisi"
+Repository = "https://github.com/timoverlaan/fastlisi"
+Issues = "https://github.com/timoverlaan/fastlisi/issues"
 
 [tool.scikit-build]
 minimum-version = "0.10"
-wheel.packages = ["fastlisi"]
+wheel.packages = ["src/fastlisi"]
 sdist.include = ["tests/data/*.tsv.gz"]
 sdist.exclude = [".github"]
 build.verbose = true
@@ -64,9 +64,6 @@ archs = ["x86_64", "aarch64"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
-# AppleClang needs Homebrew's libomp for OpenMP; CMakeLists.txt locates it.
-# cibuildwheel's delocate step bundles libomp.dylib into the wheel.
-before-all = "brew install libomp"
 
 [tool.cibuildwheel.macos.environment]
 MACOSX_DEPLOYMENT_TARGET = "10.15"
