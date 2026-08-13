@@ -61,6 +61,13 @@ build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64"]
+# numpy stopped publishing manylinux2014 (glibc 2.17) wheels after 2.2.x. In the
+# default manylinux2014 container, pip therefore falls back to the numpy sdist,
+# which fails to build because numpy >= 2.5 requires GCC >= 10.3 while that
+# image ships 10.2.1. Building against manylinux_2_28 matches where numpy — our
+# only runtime dependency — actually ships wheels today.
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
